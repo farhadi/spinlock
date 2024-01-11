@@ -39,7 +39,7 @@ new(Options) ->
 -spec acquire(#spinlock{}) -> lock_id().
 acquire(Lock = #spinlock{ref = Ref}) ->
     LockId = atomics:add_get(Ref, 1, 1),
-    spin(Lock, LockId, undefined, 0).
+    spin(Lock, LockId - 1, undefined, 0).
 
 -spec release(#spinlock{}, lock_id()) -> ok | {error, already_released | invalid_lock_id}.
 release(#spinlock{ref = Ref}, LockId) ->
@@ -69,17 +69,18 @@ status(#spinlock{ref = Ref}) ->
         waiting => max(Total - Released - 1, 0)
     }.
 
-spin(Lock = #spinlock{ref = Ref, max_retry = MaxRetry}, LockId, Released, MaxRetry) ->
-    atomics:compare_exchange(Ref, 2, Released, Released + 1),
-    spin(Lock, LockId, Released, 0);
-spin(Lock = #spinlock{ref = Ref}, LockId, LastReleased, Retry) ->
+spin(Lock = #spinlock{ref = Ref, max_retry = MaxRetry}, ExpectedId, ReleasedId, MaxRetry) ->
+    atomics:compare_exchange(Ref, 2, ReleasedId, ReleasedId + 1),
+    spin(Lock, ExpectedId, ReleasedId, 0);
+spin(Lock = #spinlock{ref = Ref}, ExpectedId, LastReleasedId, Retry) ->
     case atomics:get(Ref, 2) of
-        LastReleased ->
-            LastReleased < LockId - 2 andalso erlang:yield(),
-            spin(Lock, LockId, LastReleased, Retry + 1);
-        Released when Released >= LockId - 1 ->
-            LockId;
-        Released ->
-            Released < LockId - 2 andalso erlang:yield(),
-            spin(Lock, LockId, Released, 0)
+        LastReleasedId ->
+            LastReleasedId < ExpectedId - 1 andalso erlang:yield(),
+            spin(Lock, ExpectedId, LastReleasedId, Retry + 1);
+        ExpectedId ->
+            ExpectedId + 1;
+        ReleasedId when ReleasedId < ExpectedId ->
+            spin(Lock, ExpectedId, ReleasedId, 0);
+        _ ->
+            error(invalid_lock_state)
     end.
