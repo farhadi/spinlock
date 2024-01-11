@@ -27,10 +27,11 @@ new() ->
 new(Options) ->
     MaxRetry = proplists:get_value(max_retry, Options, 100_000),
     is_integer(MaxRetry) andalso MaxRetry > 0 orelse error(badarg),
-    Ref = case proplists:get_value(atomics_ref, Options) of
-        undefined -> atomics:new(2, [{signed, false}]);
-        AtomicsRef -> AtomicsRef
-    end,
+    Ref =
+        case proplists:get_value(atomics_ref, Options) of
+            undefined -> atomics:new(2, [{signed, false}]);
+            AtomicsRef -> AtomicsRef
+        end,
     #spinlock{
         ref = Ref,
         max_retry = MaxRetry
@@ -64,8 +65,8 @@ status(#spinlock{ref = Ref}) ->
     Released = atomics:get(Ref, 2),
     Total = atomics:get(Ref, 1),
     #{
-        released => Released,
         is_locked => Total > Released,
+        released => Released,
         waiting => max(Total - Released - 1, 0)
     }.
 
@@ -75,7 +76,7 @@ spin(Lock = #spinlock{ref = Ref, max_retry = MaxRetry}, ExpectedId, ReleasedId, 
 spin(Lock = #spinlock{ref = Ref}, ExpectedId, LastReleasedId, Retry) ->
     case atomics:get(Ref, 2) of
         LastReleasedId ->
-            LastReleasedId < ExpectedId - 1 andalso erlang:yield(),
+            LastReleasedId < ExpectedId - 10 andalso erlang:yield(),
             spin(Lock, ExpectedId, LastReleasedId, Retry + 1);
         ExpectedId ->
             ExpectedId + 1;
