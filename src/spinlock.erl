@@ -13,8 +13,11 @@
     max_retry :: pos_integer()
 }).
 
--type option() :: {max_retry, pos_integer()}.
+-type spinlock() :: #spinlock{}.
+-type option() :: {max_retry, pos_integer()} | {atomics_ref, atomics:atomics_ref()}.
 -type lock_id() :: pos_integer().
+
+-export_type([spinlock/0]).
 
 -spec new() -> #spinlock{}.
 new() ->
@@ -24,8 +27,12 @@ new() ->
 new(Options) ->
     MaxRetry = proplists:get_value(max_retry, Options, 100_000),
     is_integer(MaxRetry) andalso MaxRetry > 0 orelse error(badarg),
+    Ref = case proplists:get_value(atomics_ref, Options) of
+        undefined -> atomics:new(2, [{signed, false}]);
+        AtomicsRef -> AtomicsRef
+    end,
     #spinlock{
-        ref = atomics:new(2, [{signed, false}]),
+        ref = Ref,
         max_retry = MaxRetry
     }.
 
