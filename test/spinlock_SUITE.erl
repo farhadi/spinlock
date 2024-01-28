@@ -27,8 +27,8 @@ receive_msg() ->
 all() ->
     [
         new,
-        acquire_and_release,
-        ordered_acquire,
+        lock_status,
+        waiting_status,
         concurrent_acquire,
         acquire_timeout,
         invalid_lock_id,
@@ -45,7 +45,7 @@ new(_Config) ->
     Lock3 = spinlock:new([{atomics_ref, Ref}]),
     ?assertMatch(#spinlock{ref = Ref}, Lock3).
 
-acquire_and_release(_Config) ->
+lock_status(_Config) ->
     Lock = spinlock:new(),
     ?assertEqual(#{is_locked => false, released => 0, waiting => 0}, spinlock:status(Lock)),
     LockId = spinlock:acquire(Lock),
@@ -56,7 +56,7 @@ acquire_and_release(_Config) ->
     ?assertEqual({error, already_released}, spinlock:release(Lock, LockId)),
     ?assertEqual(#{is_locked => false, released => 1, waiting => 0}, spinlock:status(Lock)).
 
-ordered_acquire(_Config) ->
+waiting_status(_Config) ->
     Lock = spinlock:new(),
     LockId = spinlock:acquire(Lock),
     ?assertEqual(1, LockId),

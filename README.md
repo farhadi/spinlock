@@ -41,7 +41,7 @@ the number of requests to acquire the lock, and the other holds the number of re
 This approach offers several advantages over conventional spinlock implementations. Firstly,
 lock acquisition is ordered, meaning locks are acquired in the same sequence they are requested.
 This feature ensures consistent and predictable latency. Secondly, it tracks the number of
-processes concurrently busy-waiting to acquire a lock. By allowing only the initial few processes
+processes concurrently busy-waiting to acquire a lock. By allowing only the next process
 to busy-wait in a tight loop and interrupting spinning for the others with `erlang:yield/0`,
 this method reduces spinlock starvation and offers other processes more opportunities to run.
 
